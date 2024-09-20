@@ -1,21 +1,38 @@
 #!/usr/bin/env -S yarn ts-node -P ./tsconfig.json
-import { NotificationsBot } from "../workers/NotificationsBot"
+import { TelegramSalesBot } from "../workers/TelegramSalesBot"
 import { FunctionalityConfig } from "../config/FunctionalityConfig"
 import { AllChain } from "../functions"
 import * as dotenv from "dotenv"
+import TelegramBot from "node-telegram-bot-api"
 
-const result = dotenv.config()
+dotenv.config()
 const config = new FunctionalityConfig()
 
-const discord: boolean = process.argv.includes("--discord") ? true : false
-const collectionAddress: string = process.argv.includes("--collection") ? process.argv[process.argv.indexOf("--collection") + 1] : ""
+const collectionAddress: string = process.env.COLLECTION_ADDRESS || ""
+const chatId: string = process.env.TELEGRAM_CHAT_ID || ""
 
 const networkName = config.network as AllChain
 
+if (!collectionAddress) throw new Error("COLLECTION_ADDRESS is not set in .env file")
+if (!chatId) throw new Error("TELEGRAM_CHAT_ID is not set in .env file")
 
-if (discord) {
-  if(!collectionAddress) throw new Error("Collection address is required when using discord")
-  const loopSeconds = 10
-  const bot = new NotificationsBot(1000 * loopSeconds, networkName, collectionAddress)
-  bot.run()
-}
+// Create a bot that uses 'polling' to fetch new updates
+const bot = new TelegramBot(config.telegramBotToken, { polling: true });
+
+// Get bot information
+bot.getMe().then((botInfo) => {
+  console.log('Bot Name:', botInfo.first_name);
+  console.log('Bot Username:', botInfo.username);
+});
+
+bot.on('message', (msg) => {
+  const chatId = msg.chat.id;
+  console.log('Received a message from chat ID:', chatId);
+  bot.sendMessage(chatId, 'I received your message. This chat ID is: ' + chatId);
+});
+
+console.log('Bot is running. Send a message to the bot to get the chat ID.');
+
+const loopSeconds = 60
+const salesBot = new TelegramSalesBot(1000 * loopSeconds, networkName, collectionAddress, chatId)
+salesBot.run()
