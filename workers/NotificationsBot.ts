@@ -1,37 +1,38 @@
 import { WorkerBase } from "./WorkerBase"
 import { AllChain, getSales } from "../functions"
-import { ethers } from "ethers"
 
 const FETCH_SALES_NUMBER = 10
 
 export class NotificationsBot extends WorkerBase {
-
   // initial timeFrom
-  private timeFrom = 0
+  private blockFrom = 0
   constructor(
     interval: number,
     private network: AllChain,
     private collectionAddress: string,
+    private startFromBlock: number,
     private dryRun = false,
   ) {
     super(interval, "NotificationsBot" + (dryRun ? "-dry" : ""))
-    //set time from to now
-    this.timeFrom = Math.floor(Date.now() / 1000)
+    // set time from to now
+    this.blockFrom = this.startFromBlock
   }
 
   async iteration() {
-    const useTimeFrom = this.timeFrom
+    const useBlockFrom = this.blockFrom
     // now lets reset timeFrom to now
-    this.timeFrom = Math.floor(Date.now() / 1000)
-    console.log("timeFrom", useTimeFrom)
+    console.log("useBlockFrom", useBlockFrom)
     const lastSales = await getSales({
-      "collectionAddress": this.collectionAddress,
-      "timeFrom": useTimeFrom.toString(),
-    }, 0, FETCH_SALES_NUMBER, "createdAt", "DESC", this.network)
+      collectionAddress: this.collectionAddress,
+      blockFrom: useBlockFrom.toString(),
+    }, 0, FETCH_SALES_NUMBER, "blockNumber", "ASC", this.network)
 
     console.log("found sales", lastSales.length)
-    for (const sale of lastSales) {
-      console.log(sale)
+    if (lastSales.length > 0) {
+      for (const sale of lastSales) {
+        console.log(sale)
+      }
+      this.blockFrom = lastSales[lastSales.length - 1].blockNumber
     }
   }
 }
